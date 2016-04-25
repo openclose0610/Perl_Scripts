@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 
-my $in_ori_fileile='IDTP9220_Registers.cpp';
+my $in_ori_fileile='tempbak.cpp';
 open(my $in_ori_file,$in_ori_fileile)or die "Could not open file'$in_ori_fileile'$!";
 my $targetfile='temp.cpp';
 open(my $output_file,'>',$targetfile)or die "Could not open file'$targetfile'$!";
@@ -10,40 +10,28 @@ open(my $output_file,'>',$targetfile)or die "Could not open file'$targetfile'$!"
 
 while(my $row=<$in_ori_file>)
 {
-   	if($row=~/^\s+(\w+)\.(\w+)\s+=\s+(\w+)\.(\w+)\s*;/xg)
+   	if($row=~/^\s+(\w+)\.(\w+)\s+=\s+(\w+)\s*;/xg)
 	{
 		my $object = $1;
 		my $member = $2;
-		my $object2  = $3;
-		my $member2 = $4;
-		my $class1;
-		my $class2;
-
+		my $value  = $3;
+		my $class;
+		if ($value=~/reg_value/i)
+		{	
+			print $output_file $row;		
+		}
+		else
+		{
 			my $structfile='Global.cpp';
 			open(my $istruct_file,$structfile)or die "Could not open file'$structfile'$!";
 	
 			while(my $row2=<$istruct_file>)
 			{
 				if($row2=~/^(\w+)\s+(\w+);/xg){
-					if($object eq $object2)
+					if($2 eq $object)
 					{
-						if($2 eq $object)
-						{
-							$class1 = $1;
-							$class2 = $1;
-						}	
-					}
-					else
-					{
-						if($2 eq $object)
-						{
-							$class1 = $1;
-						#	print "Im struct read \n";
-						}
-						else if($2 eq $object2)
-						{
-							$class2 = $1;	
-						}
+						$class = $1;
+					#	print "Im struct read \n";
 					}
 				}
 			}
@@ -96,11 +84,24 @@ while(my $row=<$in_ori_file>)
 				print $output_file $row;
 			}
 		}
-		
 			
 	}
 	else
-	{				
+	{
+		my $ori = qr/reg_value/;
+		my $target = "reg_value[site_num]";
+		$row=~s/^(\s*)$ori(\s*=\s*)$ori(.*\;)$/$1\t$target$2$target$3/g;
+		$row=~s/^\s+int\s+iSite\;\s*$//;
+		if($row=~/\/\/\'\s*[-]+\s*Store.*address/ig)
+		{
+			print $output_file "\t\}\n";
+		}
+		print $output_file $row;
+		if($row=~/reg_value\.init\(0\)\;/i)
+		{
+			my $for_loop_print = 'for(int site_num=0; site_num < MAX_SITE_NUMBER; site_num++){';
+			print $output_file "\t",$for_loop_print,"\n";
+		}		
 	}
 	$/ = "\n";
 }
