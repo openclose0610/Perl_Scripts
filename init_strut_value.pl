@@ -2,9 +2,10 @@ use strict;
 use warnings;
 
 
-my $in_ori_fileile='Global.cppbak';
+
+my $in_ori_fileile=$ARGV[0];#input file
 open(my $in_ori_file,$in_ori_fileile)or die "Could not open file'$in_ori_fileile'$!";
-my $targetfile='Global.cpp';
+my $targetfile=$ARGV[1];#output file
 open(my $output_file,'>',$targetfile)or die "Could not open file'$targetfile'$!";
 
 
@@ -19,7 +20,7 @@ while(my $row=<$in_ori_file>)
 	
 		#my %member_hash;
 		my @member_type_array=();
-		my $lookupfile='IDTP9220_Enums.h';
+		my $lookupfile=$ARGV[2];#reference file
 		open(my $iEnum_file,$lookupfile)or die "Could not open file'$lookupfile'$!";
 		$/ = "";
 		while(my $row3=<$iEnum_file>)
