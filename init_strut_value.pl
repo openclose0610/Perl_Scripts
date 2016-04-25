@@ -1,7 +1,6 @@
 use strict;
 use warnings;
-
-
+#version 0.1 -Jacob 0425
 
 my $in_ori_fileile=$ARGV[0];#input file
 open(my $in_ori_file,$in_ori_fileile)or die "Could not open file'$in_ori_fileile'$!";
