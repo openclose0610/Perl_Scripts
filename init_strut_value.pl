@@ -2,108 +2,79 @@ use strict;
 use warnings;
 
 
-my $in_ori_fileile='tempbak.cpp';
+my $in_ori_fileile='Global.cppbak';
 open(my $in_ori_file,$in_ori_fileile)or die "Could not open file'$in_ori_fileile'$!";
-my $targetfile='temp.cpp';
+my $targetfile='Global.cpp';
 open(my $output_file,'>',$targetfile)or die "Could not open file'$targetfile'$!";
 
 
 while(my $row=<$in_ori_file>)
 {
-   	if($row=~/^\s+(\w+)\.(\w+)\s+=\s+(\w+)\s*;/xg)
+   	if($row=~/^(\w+_Struct)\s+(\w+)\;(.*)$/xig)
 	{
-		my $object = $1;
-		my $member = $2;
-		my $value  = $3;
-		my $class;
-		if ($value=~/reg_value/i)
-		{	
-			print $output_file $row;		
-		}
-		else
+		my $struct = $1;
+		my $object = $2;
+		my $comments = $3;
+		
+	
+		#my %member_hash;
+		my @member_type_array=();
+		my $lookupfile='IDTP9220_Enums.h';
+		open(my $iEnum_file,$lookupfile)or die "Could not open file'$lookupfile'$!";
+		$/ = "";
+		while(my $row3=<$iEnum_file>)
 		{
-			my $structfile='Global.cpp';
-			open(my $istruct_file,$structfile)or die "Could not open file'$structfile'$!";
-	
-			while(my $row2=<$istruct_file>)
-			{
-				if($row2=~/^(\w+)\s+(\w+);/xg){
-					if($2 eq $object)
-					{
-						$class = $1;
-					#	print "Im struct read \n";
-					}
+			my $class_member = qr/\s*(\w+)\s+(\w+);.*\n/;
+			my $search_class = qr/$struct/;
+			#print $output_file $row3;
+			chomp($row3);
+			if($row3=~/struct\s+$search_class\{([^}]*)\}\;/g){
+				#print $output_file $1,"\n";
+				my $class_member_all = $1;
+				$/ = "\n";
+				
+				while($class_member_all=~/$class_member/g)
+				{					
+						#$member_hash{"$2"} = $1;#member => member type
+						push(@member_type_array,$1);
+						#print  "\/\/$2 => $1\n" ; 						
 				}
 			}
-			#print "debug info $class \n";
-			close $istruct_file;
-	
-			my %member_hash;
-			my $lookupfile='IDTP9220_Enums.h';
-			open(my $iEnum_file,$lookupfile)or die "Could not open file'$lookupfile'$!";
-			$/ = "";
-			while(my $row3=<$iEnum_file>)
-			{
-				my $class_member = qr/\s*(\w+)\s+(\w+);.*\n/;
-				my $search_class = qr/$class/;
-				#print $output_file $row3;
-				chomp($row3);
-				if($row3=~/struct\s+$search_class\{([^}]*)\}\;/g){
-					#print $output_file $1,"\n";
-					my $class_member_all = $1;
-					$/ = "\n";
-					
-					while($class_member_all=~/$class_member/g)
-					{					
-							$member_hash{"$2"} = $1;#member => member type
-							#print  "\/\/$2 => $1\n" ; 						
-					}
-				}
-			}		
-			close $iEnum_file;
-			my $new_row_format;
-			my $member_type = "init";
-			if(exists($member_hash{$member})){
-				$member_type = $member_hash{$member};
-				#print "$member => $member_type\n";
+		}		
+		close $iEnum_file;
+
+		
+		my $new_row_format="$struct\t$object=\{";
+		foreach (@member_type_array)
+		{
+			my $add_init_value;
+			if(/\bint\b/i){
+				$add_init_value= "0";
 			}
-			else{die "Could not find '$member'$!";}
-			if($member_type=~/\bint\b/i){
-				print $output_file "\t$object\.$member = $value\;\n";
-			}
-			elsif($member_type=~/\w+Enum/i)
+			elsif(/ARRAY_I/i)
 			{
-				print $output_file "\t$object\.$member = $member_type\($value\)\;\n";
+				 $add_init_value="init_all_sites_zero_int";
 			}
-			elsif($member_type=~/ARRAY/i)
+			elsif(/ARRAY_D/i)
 			{
-				print $output_file "\t$object\.$member\.init\($value\)\;\n";
+				$add_init_value="init_all_sites_zero_double";
 			}
 			else
 			{
-				print $output_file $row;
+				$add_init_value="$_\(0\)";
 			}
+
+		  	$new_row_format = "$new_row_format$add_init_value\," ;
 		}
+		$new_row_format="$new_row_format\}\;\t$comments\n";
+		$new_row_format=~s/\,\}\;/\}\;/g;
+		print $output_file $new_row_format;
 			
 	}
 	else
 	{
-		my $ori = qr/reg_value/;
-		my $target = "reg_value[site_num]";
-		$row=~s/^(\s*)$ori(\s*=\s*)$ori(.*\;)$/$1\t$target$2$target$3/g;
-		$row=~s/^\s+int\s+iSite\;\s*$//;
-		if($row=~/\/\/\'\s*[-]+\s*Store.*address/ig)
-		{
-			print $output_file "\t\}\n";
-		}
 		print $output_file $row;
-		if($row=~/reg_value\.init\(0\)\;/i)
-		{
-			my $for_loop_print = 'for(int site_num=0; site_num < MAX_SITE_NUMBER; site_num++){';
-			print $output_file "\t",$for_loop_print,"\n";
-		}		
 	}
-	$/ = "\n";
 }
 close $output_file;
 close $in_ori_file;
